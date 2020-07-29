@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<head>
+    <title>出刀记录</title>
+    <meta name='viewport' content='width=480' charset="utf-8" />
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.11/vue.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/axios/0.19.2/axios.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/element-ui/2.13.0/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/min/moment-with-locales.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ant-design-vue@1.6.4/dist/antd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/element-ui/2.13.0/theme-chalk/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ant-design-vue@1.6.4/dist/antd.min.css">
+    <style>
+        .el-popover {
+            white-space: pre-wrap;
+        }
+
+        .digit6 {
+            color: blue;
+        }
+
+        .digit7 {
+            color: green;
+        }
+
+        .digit8 {
+            color: orange;
+        }
+
+        .digit9 {
+            color: red;
+        }
+
+        .date-row {
+            margin: 20px;
+        }
+
+        .row-item {
+            text-align: center;
+        }
+
+        .bigint {
+            font-size: 24px
+        }
+
+        #components-layout-demo-top .logo {
+            width: 120px;
+            height: 31px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 24px 0 0;
+            float: left;
+        }
+
+        #components-layout-demo-top .goback {
+            float: right;
+        }
+
+        .content {
+            padding: 0 50px;
+            min-height: 580px;
+        }
+
+        .demo-table-expand {
+            font-size: 0;
+        }
+
+        .demo-table-expand label {
+            width: 90px;
+            color: #99a9bf;
+        }
+
+        .demo-table-expand .el-form-item {
+            margin-right: 0;
+            margin-bottom: 0;
+            width: 100%;
+        }
+
+        @media (max-width: 576px) {
+            #components-layout-demo-top .logo {
+                width: 50px;
+                height: 64px;
+                background: rgba(255, 255, 255, 0.2);
+                margin: 0 2px 0 0px;
+                float: left;
+            }
+
+            .content {
+                padding: 0 20px;
+                min-height: 580px;
+            }
+
+            .ant-layout-header {
+                height: 64px;
+                padding: 0 0 0 20px;
+                line-height: 64px;
+            }
+            .ant-page-header-heading-extra>* {
+                margin-left: 4px;
+            }
+
+            .ant-calendar-picker {
+                width: 160px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <template>
+            <a-layout id="components-layout-demo-top" class="layout">
+                <a-layout-header style="background-color: #fff;">
+                    <div class="logo">
+                        <img src="{{ url_for('yobot_static', filename='logo.png') }}"
+                            style="width: 100%; height: auto;" />
+                    </div>
+                    <a-menu mode="horizontal" :default-selected-keys="['3']" :style="{ lineHeight: '64px' }"
+                        @select="handleTitleSelect">
+                        <a-menu-item key="1">
+                            面板
+                        </a-menu-item>
+                        <a-menu-item key="2">
+                            预约
+                        </a-menu-item>
+                        <a-menu-item key="3">
+                            查刀
+                        </a-menu-item>
+                        <a-menu-item key="4">
+                            统计
+                        </a-menu-item>
+                        <a-menu-item key="5">
+                            我的
+                        </a-menu-item>
+                        <a-menu-item key="6" class="goback">
+                            返回
+                        </a-menu-item>
+                    </a-menu>
+                </a-layout-header>
+                <a-layout-content class="content">
+                    <div :style="{ background: '#fff', padding: '24px', minHeight: '280px', margin: '30px 0 0' }">
+                        <a-page-header style="border: 1px solid rgb(235, 237, 240)" :title="'行会名称'" sub-title=" - 出刀记录">
+                            <template v-if="screenWidth >= 576">
+                                <template slot="extra">
+                                    <a-button key="5" icon="exception" @click="selectUnfinished">
+                                        选中未完成
+                                    </a-button>
+                                    <a-button key="4" icon="bell" @click="sendRemindVisible = true">
+                                        提醒出刀
+                                    </a-button>
+                                    <a-button key="3" icon="delete" @click="dropMemberVisible = true">
+                                        删除成员
+                                    </a-button>
+                                    <a-button key="2" icon="eye" @click="viewTails">
+                                        尾刀一览
+                                    </a-button>
+                                    <a-date-picker key="1"
+                                        :default-value="moment().subtract(5, 'hours').format('YYYY-MM-DD')"
+                                        @change="report_day" placeholder="请选择日期" />
+                                </template>    
+                            </template>
+                            <template v-else>
+                                <template slot="extra">
+                                    <a-button key="5" shape="circle" icon="exception" @click="selectUnfinished"></a-button>
+                                    <a-button key="4" shape="circle" icon="bell" @click="sendRemindVisible = true"></a-button>
+                                    <a-button key="3" shape="circle" icon="delete" @click="dropMemberVisible = true"></a-button>
+                                    <a-button key="2" shape="circle" icon="eye" @click="viewTails"></a-button>
+                                    <a-date-picker key="1"
+                                        :default-value="moment().subtract(5, 'hours').format('YYYY-MM-DD')"
+                                        @change="report_day" placeholder="请选择日期" />
+                                </template>    
+                            </template>
+                            <template v-if="progressData.length > 0">
+                                <a-row :gutter="16">
+                                    <a-col :xs="12" :md="4">
+                                        <a-statistic title="成员数" :value="[[ members.length ]]" />
+                                    </a-col>
+                                    <a-col :xs="12" :md="4">
+                                        <a-statistic title="出刀数"
+                                            :value="[[ progressData.reduce((s,i)=>s+i.finished,0) ]]">
+                                            <template #suffix>
+                                                <span> / [[ members.length * 3 ]]</span>
+                                            </template>
+                                        </a-statistic>
+                                    </a-col>
+                                </a-row>
+                                <a-row>
+                                    <a-col :span="23">
+                                        <a-progress :stroke-color="{
+                                            from: '#108ee9',
+                                            to: '#87d068',
+                                        }" :percent="(progressData.reduce((s,i)=>s+i.finished,0)/members.length/3*100).toFixed(1)"
+                                            status="active" />
+                                    </a-col>
+                                </a-row>
+                            </template>
+                        </a-page-header>
+                        <div style="margin-top: 20px;">
+                            <a-card title="记录一览">
+                                <template slot="extra">
+                                    伤害颜色指示：<span class="digit6">十万</span> <span class="digit7">百万</span> <span
+                                        class="digit8">千万</span> <span class="digit9">亿</span>
+                                </template>
+                                <template v-if="progressData.length > 0">
+                                    <template v-if="screenWidth >= 576">
+                                        <el-table :data="progressData" :span-method="arraySpanMethod"
+                                            ref="multipleTable" height=800 @selection-change="handleSelectionChange"
+                                            :row-class-name="tableRowClassName">
+                                            <el-table-column type="selection" align="center"></el-table-column>
+                                            <el-table-column prop="qqid" label="QQ号" min-width="100" align="center" sortable>
+                                            </el-table-column>
+                                            <el-table-column prop="nickname" label="昵称" min-width="120" align="center" sortable>
+                                            </el-table-column>
+                                            <el-table-column prop="finished" label="已完成" align="center" sortable></el-table-column>
+                                            <el-table-column label="第一刀">
+                                                <el-table-column label="尾刀" min-width="120" align="center">
+                                                    <template v-if="scope.row.detail[0]" slot-scope="scope">
+                                                        <a v-html="csummary(scope.row.detail[0])"></a>
+                                                        <el-popover placement="top" effect="light" trigger="hover">[[
+                                                            cdetail(scope.row.detail[0]) ]]<i class="el-icon-info"
+                                                                slot="reference"></i>
+                                                        </el-popover>
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column label="剩余刀" min-width="120" align="center">
+                                                    <template v-if="scope.row.detail[1]" slot-scope="scope">
+                                                        <a v-html="csummary(scope.row.detail[1])"></a>
+                                                        <el-popover placement="top" effect="light" trigger="hover">[[
+                                                            cdetail(scope.row.detail[1]) ]]<i class="el-icon-info"
+                                                                slot="reference"></i>
+                                                        </el-popover>
+                                                    </template>
+                                                </el-table-column>
+                                            </el-table-column>
+                                            <el-table-column label="第二刀">
+                                                <el-table-column label="尾刀" min-width="120" align="center">
+                                                    <template v-if="scope.row.detail[2]" slot-scope="scope">
+                                                        <a v-html="csummary(scope.row.detail[2])"></a>
+                                                        <el-popover placement="top" effect="light" trigger="hover">[[
+                                                            cdetail(scope.row.detail[2]) ]]<i class="el-icon-info"
+                                                                slot="reference"></i>
+                                                        </el-popover>
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column label="剩余刀" min-width="120" align="center">
+                                                    <template v-if="scope.row.detail[3]" slot-scope="scope">
+                                                        <a v-html="csummary(scope.row.detail[3])"></a>
+                                                        <el-popover placement="top" effect="light" trigger="hover">[[
+                                                            cdetail(scope.row.detail[3]) ]]<i class="el-icon-info"
+                                                                slot="reference"></i>
+                                                        </el-popover>
+                                                    </template>
+                                                </el-table-column>
+                                            </el-table-column>
+                                            <el-table-column label="第三刀">
+                                                <el-table-column label="尾刀" min-width="120" align="center">
+                                                    <template v-if="scope.row.detail[4]" slot-scope="scope">
+                                                        <a v-html="csummary(scope.row.detail[4])"></a>
+                                                        <el-popover placement="top" effect="light" trigger="hover">[[
+                                                            cdetail(scope.row.detail[4]) ]]<i class="el-icon-info"
+                                                                slot="reference"></i>
+                                                        </el-popover>
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column label="剩余刀" min-width="120" align="center">
+                                                    <template v-if="scope.row.detail[5]" slot-scope="scope">
+                                                        <a v-html="csummary(scope.row.detail[5])"></a>
+                                                        <el-popover placement="top" effect="light" trigger="hover">[[
+                                                            cdetail(scope.row.detail[5]) ]]<i class="el-icon-info"
+                                                                slot="reference"></i>
+                                                        </el-popover>
+                                                    </template>
+                                                </el-table-column>
+                                            </el-table-column>
+                                            <el-table-column prop="sl" label="SL" align="center" sortable>
+                                                <template slot-scope="scope">
+                                                    <template v-if="today==-1">-</template>
+                                                    <template v-else>
+                                                        <i class="el-icon-smoking"
+                                                            :style="{color:(scope.row.sl==today?'#F56C6C':'#67C23A')}"></i>
+                                                    </template>
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column label="历史" align="center">
+                                                <template slot-scope="scope">
+                                                    <el-button type="text" icon="el-icon-time"
+                                                        @click="location='../'+scope.row.qqid+'/'">
+                                                    </el-button>
+                                                </template>
+                                            </el-table-column>
+                                        </el-table>
+                                    </template>
+                                    <template v-else>
+                                        <el-table :data="progressData" ref="multipleTable" @selection-change="handleSelectionChange">
+                                            <el-table-column type="expand">
+                                                <template slot-scope="props">
+                                                    <el-form label-position="left" inline class="demo-table-expand">
+                                                        <el-form-item label="QQ号">
+                                                            <span>[[ props.row.qqid ]]</span>
+                                                        </el-form-item>
+                                                        <el-form-item label="第一刀">
+                                                            <span v-html="csummaryxs(props.row.detail[0], props.row.detail[1])"></span>
+                                                        </el-form-item>
+                                                        <el-form-item label="第二刀">
+                                                            <span v-html="csummaryxs(props.row.detail[2], props.row.detail[3])"></span>
+                                                        </el-form-item>
+                                                        <el-form-item label="第三刀">
+                                                            <span v-html="csummaryxs(props.row.detail[4], props.row.detail[5])"></span>
+                                                        </el-form-item>
+                                                        <el-form-item label="SL">
+                                                            <template v-if="today==-1">-</template>
+                                                            <template v-else>
+                                                                <span>[[ props.row.sl == today ? '是' : '否' ]]</span>
+                                                            </template>        
+                                                        </el-form-item>
+                                                    </el-form>
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column type="selection" align="center"></el-table-column>
+                                            <el-table-column prop="nickname" label="昵称" align="center" sortable>
+                                            </el-table-column>
+                                            <el-table-column prop="finished" label="已完成" align="center" sortable></el-table-column>
+                                            <el-table-column label="历史" align="center">
+                                                <template slot-scope="scope">
+                                                    <el-button type="text" icon="el-icon-time"
+                                                        @click="location='../'+scope.row.qqid+'/'">
+                                                    </el-button>
+                                                </template>
+                                            </el-table-column>
+                                        </el-table>
+                                    </template>
+                                    <el-button @click="viewInExcel" size="mini">在Excel中查看（测试功能）</el-button>
+                                </template>
+                                <template v-else>
+                                    没有记录
+                                </template>
+                            </a-card>
+                        </div>
+                    </div>
+                    <el-dialog title="警告" :visible.sync="sendRemindVisible">
+                        <p>您确定要向[[ multipleSelection.length ]]名成员发送提醒吗</p>
+                        <el-form>
+                            <el-form-item label="提醒类型" label-width="120">
+                                <el-radio-group v-model="send_via_private">
+                                    <el-switch v-model="send_via_private" active-text="私聊消息" inactive-text="群聊消息">
+                                    </el-switch>
+                                </el-radio-group>
+                            </el-form-item>
+                        </el-form>
+                        <span slot="footer" class="dialog-footer">
+                            <el-button type="primary" @click="sendRemindVisible = false">取消</el-button>
+                            <el-button type="danger" @click="sendRequest('send_remind'),sendRemindVisible = false">确定
+                            </el-button>
+                        </span>
+                    </el-dialog>
+                    <el-dialog title="警告" :visible.sync="dropMemberVisible">
+                        <p>您确定要删除这[[ multipleSelection.length ]]名成员吗</p>
+                        <span slot="footer" class="dialog-footer">
+                            <el-button type="primary" @click="dropMemberVisible = false">取消</el-button>
+                            <el-button type="danger" @click="sendRequest('drop_member'),dropMemberVisible = false">确定
+                            </el-button>
+                        </span>
+                    </el-dialog>
+                    <el-dialog title="未完成的尾刀一览" :visible.sync="tailsDataVisible">
+                        <template v-if="tailsData.length > 0">
+                            <el-table :data="tailsData">
+                                <el-table-column prop="qqid" label="QQ号" sortable></el-table-column>
+                                <el-table-column prop="nickname" label="昵称" sortable></el-table-column>
+                                <el-table-column prop="boss" label="boss"></el-table-column>
+                                <el-table-column prop="damage" label="尾刀伤害" sortable>
+                                    <template slot-scope="scope">[[ scope.row.damage.toLocaleString() ]]</template>
+                                </el-table-column>
+                                <el-table-column prop="message" label="留言"></el-table-column>
+                            </el-table>
+                        </template>
+                        <template v-else>
+                            没有尾刀
+                        </template>
+                    </el-dialog>
+    
+                </a-layout-content>
+                <a-layout-footer style="text-align: center">
+                    <p>风间bot / かざまbot ©2020 Powered by 风间</p>
+                    <p>From yobot <a href="https://github.com/yuudi/yobot">
+                            <a-icon type="github" /></a> | <a href="{{ url_for('yobot_about') }}">关于yobot</a></p>
+                </a-layout-footer>
+            </a-layout>
+        </template>
+    </div>
+</body>
+<script>var csrf_token = "{{ session['csrf_token'] }}";</script>
+<script>moment.locale('zh-cn');</script>
+<script src="{{ url_for('yobot_static', filename='clan/progress.js') }}"></script>
+
+</html>
